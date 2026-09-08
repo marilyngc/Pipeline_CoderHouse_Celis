@@ -1,0 +1,16 @@
+{
+  "name": "docket-test-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test",
+    "build": "node --test && mkdir -p /tmp/build-proof && printf '%s' 'tests-passed' > /tmp/build-proof/tests-passed"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

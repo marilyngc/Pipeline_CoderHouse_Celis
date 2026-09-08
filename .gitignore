@@ -1,0 +1,14 @@
+# Node.js
+node_modules/
+npm-debug.log*
+app/package-lock.json.bak
+
+
+# Variables de entorno locales
+.env
+.env.*
+
+# Sistema operativo / editor
+.DS_Store
+.vscode/
+.idea/
