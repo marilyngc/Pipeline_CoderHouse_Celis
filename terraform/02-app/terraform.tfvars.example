@@ -1,0 +1,6 @@
+# Copia este archivo a terraform.tfvars y ajusta lo que necesites.
+namespace      = "demo"
+app_name       = "demo-app"
+app_image      = "demo-app:dev" # mismo valor que en 01-infra/terraform.tfvars
+replicas       = 2
+container_port = 3000

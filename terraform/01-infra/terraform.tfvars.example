@@ -1,0 +1,13 @@
+# Copia este archivo a terraform.tfvars y ajusta lo que necesites.
+# terraform.tfvars está en .gitignore a propósito (no se sube al repo).
+
+cluster_name    = "demo-cluster"
+worker_count    = 2
+node_image      = "kindest/node:v1.31.0" # verifica que coincida con tu `kind version`
+kubeconfig_path = "~/.kube/kind-demo-cluster.yaml"
+
+# Debe ser EXACTAMENTE el tag que usaste en:
+#   docker build -f docker/Dockerfile -t demo-app:dev .
+app_image = "demo-app:dev"
+
+enable_registry = false
