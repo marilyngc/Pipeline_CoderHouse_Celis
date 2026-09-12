@@ -93,6 +93,10 @@ jobs:
           kubectl cluster-info
           kubectl get nodes
 
+      - name: Create demo namespace
+        run: |
+          kubectl apply -f k8s/00-namespace.yaml
+
       - name: Create GHCR pull secret
         shell: bash
         run: |
