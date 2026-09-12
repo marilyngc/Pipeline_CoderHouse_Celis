@@ -81,6 +81,21 @@ jobs:
       - name: Terraform apply
         run: terraform -chdir=terraform/01-infra apply -auto-approve
 
+      - name: Export kubeconfig
+        shell: bash
+        run: |
+          KUBECONFIG_PATH=$(terraform -chdir=terraform/01-infra output -raw kubeconfig_path)
+          cp "$KUBECONFIG_PATH" "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+          echo "Kubeconfig exported to $RUNNER_TEMP/kubeconfig"
+
+      - name: Upload kubeconfig artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubeconfig
+          path: ${{ runner.temp }}/kubeconfig
+          if-no-files-found: error
+
   deploy:
     runs-on: ubuntu-latest
     needs:
@@ -97,16 +112,16 @@ jobs:
           chmod +x ./kubectl
           sudo mv ./kubectl /usr/local/bin/kubectl
 
-      - name: Setup kind CLI
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
+      - name: Download kubeconfig artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kubeconfig
+          path: ${{ runner.temp }}
 
-      - name: Export kubeconfig
+      - name: Configure cluster access
+        shell: bash
         run: |
-          export KUBECONFIG=$(terraform -chdir=terraform/01-infra output -raw kubeconfig_path)
-          echo "KUBECONFIG=${KUBECONFIG}" >> "$GITHUB_ENV"
+          echo "KUBECONFIG=${{ runner.temp }}/kubeconfig" >> "$GITHUB_ENV"
           kubectl cluster-info
           kubectl get nodes
 
@@ -127,14 +142,6 @@ jobs:
             curl -fsS http://127.0.0.1:3000/health && break
             sleep 2
           done
-
-  dast:
-    runs-on: ubuntu-latest
-    needs: deploy
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
       - name: Run DAST scan with OWASP ZAP
         run: |
