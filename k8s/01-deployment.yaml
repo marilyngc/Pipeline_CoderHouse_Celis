@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: demo-app
-          image: demo-app:dev
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/marilyngc/pipeline_coderhouse_celis:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           livenessProbe:
