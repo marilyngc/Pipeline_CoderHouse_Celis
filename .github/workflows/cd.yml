@@ -67,6 +67,11 @@ jobs:
       - name: Terraform fmt
         run: terraform -chdir=terraform/01-infra fmt -check -recursive
 
+      - name: Clean stale Terraform state
+        run: |
+          rm -f terraform/01-infra/terraform.tfstate
+          rm -f terraform/01-infra/terraform.tfstate.backup
+
       - name: Terraform init
         run: terraform -chdir=terraform/01-infra init -backend=false
 

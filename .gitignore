@@ -3,6 +3,11 @@ node_modules/
 npm-debug.log*
 app/package-lock.json.bak
 
+# Terraform
+terraform/**/*.tfstate
+terraform/**/*.tfstate.*
+terraform/**/.terraform/
+terraform/**/.terraform.lock.hcl
 
 # Variables de entorno locales
 .env
