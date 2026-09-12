@@ -93,6 +93,17 @@ jobs:
           kubectl cluster-info
           kubectl get nodes
 
+      - name: Create GHCR pull secret
+        shell: bash
+        run: |
+          kubectl create secret docker-registry ghcr-creds \
+            --namespace demo \
+            --docker-server=ghcr.io \
+            --docker-username="${{ github.actor }}" \
+            --docker-password="${{ secrets.DEMO_TOKEN }}" \
+            --docker-email="${{ github.actor }}@users.noreply.github.com" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Kubernetes manifests
         run: |
           kubectl apply -f k8s/00-namespace.yaml
