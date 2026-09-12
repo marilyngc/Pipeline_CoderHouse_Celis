@@ -11,6 +11,7 @@
     "build": "node --test && mkdir -p /tmp/build-proof && printf '%s' 'tests-passed' > /tmp/build-proof/tests-passed"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "prom-client": "^15.1.3"
   }
 }

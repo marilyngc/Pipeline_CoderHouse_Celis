@@ -1,0 +1,18 @@
+prometheus:
+  prometheusSpec:
+    retention: 1d
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits:   { cpu: 500m, memory: 512Mi }
+    storageSpec: {}
+
+grafana:
+  adminPassword: "admin123"
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+  service:
+    type: ClusterIP
+
+alertmanager:
+  enabled: false
