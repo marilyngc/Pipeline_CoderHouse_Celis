@@ -265,3 +265,39 @@ curl -i http://localhost:3000/health
 
 
 ---
+## 8. GitHub Actions
+
+Los workflows actuales están en:
+
+- [.github/workflows/ci.yml](.github/workflows/ci.yml)
+- [.github/workflows/cd.yml](.github/workflows/cd.yml)
+
+### 8.1 Qué hace el pipeline CI
+
+- checkout del repositorio
+- setup de Node.js
+- instalación de dependencias
+- ejecución de tests
+- build de la aplicación
+
+
+### 8.2 Qué hace el pipeline CD
+
+Su propósito es validar que:
+
+- Terraform queda inicializado correctamente
+- la infraestructura se puede validar con `terraform validate`
+- el formato de Terraform es correcto
+- los manifiestos de Kubernetes son válidos con `kubectl apply --dry-run=client`
+
+### 8.3 Ejecutar manualmente el workflow
+
+Desde GitHub:
+
+1. ir a la pestaña Actions
+2. seleccionar el workflow `CD` o `CI`
+3. hacer click en `Run workflow`
+4. confirmar la ejecución
+
+
+---
