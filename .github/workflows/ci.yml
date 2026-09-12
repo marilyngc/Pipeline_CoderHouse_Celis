@@ -1,9 +1,13 @@
-name: CI
+name: CI - Build, Test y SAST
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:
@@ -11,15 +15,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10.33.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
@@ -37,9 +41,25 @@ jobs:
         working-directory: app
         run: pnpm run build
 
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          file: ./app/Dockerfile
+          push: false
+          tags: demo-app:test
+
+  sast:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
-      - name: SAST scan
-        run: trivy fs --security-checks vuln,config app
+      - name: Run Trivy filesystem scan
+        run: trivy fs --security-checks vuln,config --exit-code 1 --severity HIGH,CRITICAL app

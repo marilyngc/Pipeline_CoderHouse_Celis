@@ -1,4 +1,4 @@
-# Proyecto de entrega: Terraform + Docker + Kubernetes + CI/CD
+# Proyecto de entrega: Implementar un pipeline completo de CI/CD (REPOSITORY)
 
 
 ### Instalación rápida
@@ -300,7 +300,11 @@ Desde GitHub:
 4. confirmar la ejecución
 
 Captura de CI
+
 ![alt text](image-2.png)
 
 Captura de CD
+
+![alt text](image-3.png)
+
 ---

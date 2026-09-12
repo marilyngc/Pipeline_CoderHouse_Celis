@@ -1,58 +1,142 @@
-name: Validar infraestructura y manifiestos
+name: CD - Build, Infra, Deploy y DAST
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  validate:
+  build-image:
     runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.set-image.outputs.image }}
 
     steps:
-      - name: Obtener código
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configurar Terraform
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.DEMO_TOKEN }}
+
+      - name: Set image ref
+        id: set-image
+        shell: bash
+        run: |
+          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}"
+          echo "image=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Pushing image ${IMAGE_NAME}"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          file: ./app/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.set-image.outputs.image }}
+            ghcr.io/${{ github.repository_owner }}/docket-test-app:latest
+
+  terraform:
+    runs-on: ubuntu-latest
+    needs: build-image
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      - name: Configurar kubectl
+      - name: Terraform fmt
+        run: terraform -chdir=terraform/01-infra fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform -chdir=terraform/01-infra init -backend=false
+
+      - name: Terraform validate
+        run: terraform -chdir=terraform/01-infra validate
+
+      - name: Terraform apply
+        run: terraform -chdir=terraform/01-infra apply -auto-approve
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs:
+      - build-image
+      - terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
         run: |
           curl -LO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
           chmod +x ./kubectl
           sudo mv ./kubectl /usr/local/bin/kubectl
 
-      - name: Inicializar Terraform
-        run: terraform -chdir=terraform/01-infra init -backend=false
-
-      - name: Validar Terraform
-        run: terraform -chdir=terraform/01-infra validate
-
-      - name: Revisar formato de Terraform
-        run: terraform -chdir=terraform/01-infra fmt -check -recursive
-
-      - name: Validar manifiestos de Kubernetes
+      - name: Setup kind CLI
         run: |
-          python3 - <<'PY'
-          import yaml
-          from pathlib import Path
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
 
-          files = [
-              Path('k8s/00-namespace.yaml'),
-              Path('k8s/01-deployment.yaml'),
-              Path('k8s/02-service.yaml'),
-              Path('k8s/ingress.yaml'),
-              Path('k8s/hpa.yaml'),
-          ]
-
-          for file in files:
-              with file.open('r', encoding='utf-8') as fh:
-                  list(yaml.safe_load_all(fh))
-
-          print('Los manifiestos de Kubernetes tienen sintaxis YAML válida.')
-          PY
-
-      - name: Resumen
+      - name: Export kubeconfig
         run: |
-          echo "Terraform y los manifiestos de Kubernetes se validaron correctamente."
-          echo "Este workflow no genera imágenes Docker ni levanta contenedores."
+          export KUBECONFIG=$(terraform -chdir=terraform/01-infra output -raw kubeconfig_path)
+          echo "KUBECONFIG=${KUBECONFIG}" >> "$GITHUB_ENV"
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/00-namespace.yaml
+          kubectl apply -f k8s/01-deployment.yaml
+          kubectl apply -f k8s/02-service.yaml
+          kubectl apply -f k8s/ingress.yaml
+          kubectl apply -f k8s/hpa.yaml
+          kubectl set image deployment/demo-app -n demo demo-app=${{ needs.build-image.outputs.image }}
+          kubectl rollout status deployment/demo-app -n demo --timeout=180s
+
+      - name: Smoke test app
+        run: |
+          kubectl port-forward -n demo svc/demo-app 3000:80 >/tmp/demo-portforward.log 2>&1 &
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:3000/health && break
+            sleep 2
+          done
+
+  dast:
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run DAST scan with OWASP ZAP
+        run: |
+          docker run --rm -v "$PWD":/zap/wrk/:rw \
+            -t owasp/zap2docker-stable:latest \
+            zap-baseline.py -t http://127.0.0.1:3000 -r zap-report.html || true
+
+      - name: Show DAST report presence
+        run: |
+          ls -l zap-report.html
