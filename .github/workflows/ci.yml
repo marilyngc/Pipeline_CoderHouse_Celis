@@ -11,16 +11,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
-          cache: 'pnpm'
-
-      - name: Enable pnpm
-        run: corepack enable
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: app
@@ -40,18 +43,3 @@ jobs:
 
       - name: SAST scan
         run: trivy fs --security-checks vuln,config app
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./app/Dockerfile
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/docket-test-app:${{ github.sha }}
