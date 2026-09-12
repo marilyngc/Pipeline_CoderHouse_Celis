@@ -62,4 +62,4 @@ jobs:
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
       - name: Run Trivy filesystem scan
-        run: trivy fs --security-checks vuln,config --exit-code 1 --severity HIGH,CRITICAL app
+        run: trivy fs --scanners vuln,misconfig --exit-code 1 --severity HIGH,CRITICAL app
