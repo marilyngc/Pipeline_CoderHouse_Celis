@@ -31,7 +31,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.DEMO_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set image ref
         id: set-image
@@ -51,7 +51,7 @@ jobs:
             ${{ steps.set-image.outputs.image }}
             ghcr.io/${{ github.repository_owner }}/docket-test-app:latest
 
-  terraform:
+  infra-and-deploy:
     runs-on: ubuntu-latest
     needs: build-image
 
@@ -63,6 +63,12 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
+
+      - name: Setup kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
+          chmod +x ./kubectl
+          sudo mv ./kubectl /usr/local/bin/kubectl
 
       - name: Terraform fmt
         run: terraform -chdir=terraform/01-infra fmt -check -recursive
@@ -79,49 +85,11 @@ jobs:
         run: terraform -chdir=terraform/01-infra validate
 
       - name: Terraform apply
-        run: terraform -chdir=terraform/01-infra apply -auto-approve
-
-      - name: Export kubeconfig
         shell: bash
         run: |
-          KUBECONFIG_PATH=$(terraform -chdir=terraform/01-infra output -raw kubeconfig_path)
-          cp "$KUBECONFIG_PATH" "$RUNNER_TEMP/kubeconfig"
-          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
-          echo "Kubeconfig exported to $RUNNER_TEMP/kubeconfig"
-
-      - name: Upload kubeconfig artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: kubeconfig
-          path: ${{ runner.temp }}/kubeconfig
-          if-no-files-found: error
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs:
-      - build-image
-      - terraform
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup kubectl
-        run: |
-          curl -LO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
-          chmod +x ./kubectl
-          sudo mv ./kubectl /usr/local/bin/kubectl
-
-      - name: Download kubeconfig artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: kubeconfig
-          path: ${{ runner.temp }}
-
-      - name: Configure cluster access
-        shell: bash
-        run: |
-          echo "KUBECONFIG=${{ runner.temp }}/kubeconfig" >> "$GITHUB_ENV"
+          terraform -chdir=terraform/01-infra apply -auto-approve
+          export KUBECONFIG=$(terraform -chdir=terraform/01-infra output -raw kubeconfig_path)
+          echo "KUBECONFIG=$KUBECONFIG" >> "$GITHUB_ENV"
           kubectl cluster-info
           kubectl get nodes
 
