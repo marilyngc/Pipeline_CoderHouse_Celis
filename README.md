@@ -299,5 +299,8 @@ Desde GitHub:
 3. hacer click en `Run workflow`
 4. confirmar la ejecución
 
+Captura de CI
+![alt text](image-2.png)
 
+Captura de CD
 ---
